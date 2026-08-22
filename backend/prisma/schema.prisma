@@ -1,0 +1,58 @@
+// Prisma Schema for Course Management System
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  FACULTY
+  STUDENT
+}
+
+model User {
+  id              String    @id @default(cuid())
+  name            String
+  email           String    @unique
+  passwordHash    String
+  role            Role      @default(STUDENT)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relational definitions
+  assignedCourses Course[]  @relation("FacultyCourses")
+  createdCourses  Course[]  @relation("CreatedByCourses")
+
+  @@index([email])
+  @@index([role])
+  @@map("users")
+}
+
+model Course {
+  id          String   @id @default(cuid())
+  title       String
+  courseCode  String   @unique
+  description String   @db.Text
+  duration    String
+  
+  // Faculty assigned to course
+  facultyId   String
+  faculty     User     @relation("FacultyCourses", fields: [facultyId], references: [id], onDelete: Restrict)
+
+  // User who created the course (Admin or Faculty)
+  createdById String
+  createdBy   User     @relation("CreatedByCourses", fields: [createdById], references: [id], onDelete: Restrict)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([courseCode])
+  @@index([facultyId])
+  @@index([createdById])
+  @@map("courses")
+}
