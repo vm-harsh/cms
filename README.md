@@ -1,6 +1,6 @@
 # 🎓 EduCore - Course Management System (CMS)
 
-A production-grade, full-stack **Course Management System** built with **React**, **Tailwind CSS**, **Node.js/Express**, **Prisma ORM**, and **PostgreSQL**. Designed and implemented for a **Founding Engineer assessment**, focusing on clean architecture, strict backend Role-Based Access Control (RBAC), robust security, and a responsive SaaS user experience.
+A production-grade, full-stack **Course Management System** built with **React**, **Tailwind CSS**, **Node.js/Express**, **Prisma ORM**, and **PostgreSQL**. Designed with clean architecture, strict backend Role-Based Access Control (RBAC), robust security, and a modern responsive user experience.
 
 ---
 
@@ -18,12 +18,11 @@ A production-grade, full-stack **Course Management System** built with **React**
 10. [Project Structure](#-project-structure)
 11. [Environment Variables](#-environment-variables)
 12. [Installation & Setup](#-installation--setup)
-13. [Database Migrations & Seeding](#-database-migrations--seeding)
+13. [Database Migrations & Initial Admin Setup](#-database-migrations--initial-admin-setup)
 14. [Running Backend & Frontend](#-running-backend--frontend)
 15. [Automated Testing](#-automated-testing)
-16. [Demo Credentials](#-demo-credentials)
-17. [Security Considerations](#-security-considerations)
-18. [Future Enhancements](#-future-enhancements)
+16. [Security Considerations](#-security-considerations)
+17. [Production Deployment Recommendations](#-production-deployment-recommendations)
 
 ---
 
@@ -38,29 +37,29 @@ EduCore is a multi-role institutional Course Management System that streamlines 
 The platform follows a secure and hierarchical account-provisioning architecture:
 
 ```
-┌───────────────────────────┐
-│     Initial Admin         │  ─── Created exclusively via Prisma Database Seed
-│ (ADMIN_EMAIL / PASSWORD)  │
-└─────────────┬─────────────┘
-              │
-              ▼
-┌───────────────────────────┐
-│ Authenticated Admin Portal│  ─── Can provision additional Admins (POST /api/admin/admins)
-│   (POST /api/admin/*)     │  ─── Can provision Faculty members (POST /api/admin/faculty)
-└───────────────────────────┘
-              │
-              ▼
-┌───────────────────────────┐
-│    Public Registration    │  ─── Open registration (/register, POST /api/auth/register)
-│   (role = STUDENT only)   │  ─── Hardcoded on backend to STUDENT; role selection disallowed
-└───────────────────────────┘
+┌───────────────────────────────────────────────┐
+│              Initial Admin                    │  ─── Provisioned securely via Environment Variables &
+│  (ADMIN_NAME, ADMIN_EMAIL, ADMIN_PASSWORD)   │      Prisma Seed script (npx prisma db seed)
+└───────────────────────┬───────────────────────┘
+                        │
+                        ▼
+┌───────────────────────────────────────────────┐
+│          Authenticated Admin Portal           │  ─── Can provision additional Admins (POST /api/admin/admins)
+│             (POST /api/admin/*)               │  ─── Can provision Faculty members (POST /api/admin/faculty)
+└───────────────────────┬───────────────────────┘
+                        │
+                        ▼
+┌───────────────────────────────────────────────┐
+│             Public Registration               │  ─── Open learner registration (/register, POST /api/auth/register)
+│            (role = STUDENT only)              │  ─── Hardcoded on backend to STUDENT; role selection disallowed
+└───────────────────────────────────────────────┘
 ```
 
-### Why Role Self-Selection Is Disallowed During Public Registration
-Allowing clients to supply a `role` parameter during public signup is a critical security vulnerability (Mass Assignment / Privilege Escalation). In EduCore:
-- **Public registration** strictly requires `name`, `email`, and `password` and **always sets `role = STUDENT`** on the backend.
+### Security Rationale: Role Self-Selection Prevention
+Allowing clients to self-select privileged roles during public signup is a critical vulnerability (Privilege Escalation / Mass Assignment). In EduCore:
+- **Public registration** strictly requires `name`, `email`, `password`, and `confirmPassword`, and **always sets `role = STUDENT`** on the backend.
 - Any client attempting to manually inject `role: "ADMIN"` or `role: "FACULTY"` into `POST /api/auth/register` has the field discarded and is registered strictly as a `STUDENT`.
-- **Faculty and Admin accounts** must be explicitly created by an authenticated Administrator via protected endpoints (`POST /api/admin/faculty` and `POST /api/admin/admins`).
+- **Faculty and Administrator accounts** must be explicitly created by an authenticated Administrator via protected endpoints (`POST /api/admin/faculty` and `POST /api/admin/admins`).
 
 ---
 
@@ -174,7 +173,7 @@ erDiagram
 
 1. **Password Hashing**: Passwords hashed using `bcryptjs` with salt work factor of 10. `passwordHash` is excluded from all API responses.
 2. **Session Tokens**: Signed JWT containing `{ id, email, role }` with a configurable expiration (`7d`).
-3. **Cookie Storage**: Delivered via `httpOnly`, `SameSite=Lax` (or `Strict` in production), and `secure` cookies. Prevents JavaScript XSS access to tokens.
+3. **Cookie Storage**: Delivered via `httpOnly`, `SameSite=Lax` (or `Strict` in production), and `secure` cookies in production mode. Prevents JavaScript XSS access to tokens.
 4. **Session Hydration**: On app load, `GET /api/auth/me` validates the cookie session against the database and synchronizes the frontend `AuthContext`.
 
 ---
@@ -231,7 +230,7 @@ course_management_system/
 ├── backend/
 │   ├── prisma/
 │   │   ├── schema.prisma       # Database models & relationships
-│   │   └── seed.js             # Initial database seed script reading ENV credentials
+│   │   └── seed.js             # Initial production admin provisioning script
 │   ├── src/
 │   │   ├── config/             # Environment & Prisma client singleton
 │   │   ├── constants/          # Role constants and enums
@@ -247,7 +246,6 @@ course_management_system/
 │   │   └── auth_rbac.test.js   # Automated Vitest + Supertest integration test suite (32 tests)
 │   ├── vitest.config.js        # Vitest configuration
 │   ├── .env.example            # Environment variable documentation
-│   ├── .env                    # Local environment settings
 │   └── package.json
 │
 ├── frontend/
@@ -263,7 +261,7 @@ course_management_system/
 │   │   │   ├── admin/          # Admin Dashboard, Courses, Faculty, Admins, Students
 │   │   │   ├── faculty/        # Faculty Dashboard, Course Table, Create, Edit
 │   │   │   ├── student/        # Student Dashboard, Catalog, Course Details
-│   │   │   ├── auth/           # Login (1-click Demo), Register (Student-only)
+│   │   │   ├── auth/           # Login, Register (Student-only)
 │   │   │   └── common/         # Unauthorized (403), NotFound (404)
 │   │   ├── services/           # Axios API service clients (auth, admin, course, user)
 │   │   ├── utils/              # Class merging (cn), formatters
@@ -272,8 +270,10 @@ course_management_system/
 │   │   └── index.css           # Tailwind CSS v4 & custom styles
 │   ├── index.html              # HTML entry with Google Fonts
 │   ├── vite.config.js          # Vite config with Tailwind & Proxy
+│   ├── .env.example            # Frontend environment variable documentation
 │   └── package.json
 │
+├── .gitignore                  # Root gitignore protecting secrets
 └── README.md                   # Complete system documentation
 ```
 
@@ -285,16 +285,23 @@ course_management_system/
 
 ```env
 PORT=5000
-NODE_ENV=development
-DATABASE_URL="postgresql://postgres:postgres@localhost:5432/course_management?schema=public"
-JWT_SECRET="cms_jwt_super_secure_key_founding_engineer_assessment_2026"
+NODE_ENV=production
+DATABASE_URL="postgresql://username:password@localhost:5432/course_management?schema=public"
+JWT_SECRET="generate-a-secure-random-256-bit-string-for-production"
 JWT_EXPIRES_IN="7d"
-CLIENT_URL="http://localhost:5173"
+CLIENT_URL="https://your-production-domain.com"
 
-# Initial Admin User Credentials (for Prisma seed)
+# Initial Admin User Credentials (used by prisma/seed.js on initial deployment)
 ADMIN_NAME="System Administrator"
-ADMIN_EMAIL="admin@example.com"
-ADMIN_PASSWORD="Password123!"
+ADMIN_EMAIL="admin@yourinstitution.edu"
+ADMIN_PASSWORD="YourSecureAdminPassword123!"
+```
+
+### Frontend (`frontend/.env`)
+
+```env
+# Optional: Set if frontend is served on a separate origin from backend
+VITE_API_URL="https://api.yourdomain.com/api"
 ```
 
 ---
@@ -304,22 +311,18 @@ ADMIN_PASSWORD="Password123!"
 ### Prerequisites
 - **Node.js** (v18+)
 - **NPM** (v9+)
-- **PostgreSQL 16** (or Docker to run PostgreSQL container)
+- **PostgreSQL 16**
 
-### 1. Start PostgreSQL (Docker)
-```bash
-docker run -d --name course_mgmt_postgres \
-  -e POSTGRES_USER=postgres \
-  -e POSTGRES_PASSWORD=postgres \
-  -e POSTGRES_DB=course_management \
-  -p 5432:5432 postgres:16-alpine
-```
-
-### 2. Backend Setup
+### 1. Backend Setup
 ```bash
 cd backend
 npm install
 npx prisma db push
+```
+
+### 2. Initial Admin Provisioning
+Configure your initial admin credentials in `backend/.env` and execute:
+```bash
 npm run prisma:seed
 ```
 
@@ -333,25 +336,33 @@ npm install
 
 ## 🏃 Running Backend & Frontend
 
-### Start Backend API Server
+### Running in Development
 ```bash
+# Start Backend (runs at http://localhost:5000)
 cd backend
 npm run dev
-# Server runs at http://localhost:5000
-```
 
-### Start Frontend Client
-```bash
+# Start Frontend (runs at http://localhost:5173)
 cd frontend
 npm run dev
-# Client runs at http://localhost:5173
+```
+
+### Running in Production
+```bash
+# Backend Production Startup
+cd backend
+NODE_ENV=production node src/server.js
+
+# Frontend Production Build
+cd frontend
+npm run build
 ```
 
 ---
 
 ## 🧪 Automated Testing
 
-The backend test suite verifies all 32 critical authorization, registration, user management, and API constraint scenarios:
+The automated test suite runs 32 integration assertions using Vitest and Supertest against PostgreSQL:
 
 ```bash
 cd backend
@@ -374,25 +385,20 @@ npm test
 
 ---
 
-## 👥 Demo Credentials
-
-The application includes seeded accounts and convenient demo evaluation tools:
-
-| Role | Name | Email | Password | Permissions |
-|---|---|---|---|---|
-| **ADMIN** | System Administrator | `admin@example.com` | `Password123!` | Full CRUD on all courses, create Admins, create Faculty |
-| **FACULTY** | Dr. Sarah Smith | `dr.smith@example.com` | `Password123!` | Manage own courses (`CS101`, `CS201`, `CS501`, `CS701`) |
-| **FACULTY** | Prof. Michael Jones | `prof.jones@example.com` | `Password123!` | Manage own courses (`CS301`, `CS401`, `CS601`) |
-| **STUDENT** | Alice Williams | `alice.student@example.com` | `Password123!` | Read-only catalog browsing & syllabus details |
-| **STUDENT** | Bob Davis | `bob.student@example.com` | `Password123!` | Read-only catalog browsing & syllabus details |
-
----
-
 ## 🔒 Security Considerations
 
 - **Privilege Escalation Prevention**: Public registration completely ignores client role inputs and assigns `STUDENT`. Creation of `ADMIN` and `FACULTY` accounts requires authenticated Admin privileges (`POST /api/admin/*`).
-- **XSS Mitigation**: Authentication tokens are never stored in `localStorage` or `sessionStorage`. They are stored in `httpOnly`, `SameSite=Lax` cookies.
+- **XSS Mitigation**: Authentication tokens are never stored in `localStorage` or `sessionStorage`. They are stored in `httpOnly`, `SameSite=Lax` (or `Strict`), `secure: true` cookies.
 - **SQL Injection Prevention**: Prisma ORM uses parameterized queries under the hood for all database access.
 - **Rate Limiting**: Auth endpoints (`/api/auth/register`, `/api/auth/login`) are protected by `express-rate-limit` to mitigate brute force attacks.
 - **Security Headers**: `helmet` is enabled to configure standard HTTP security headers.
-- **Clean Errors**: Centralized error middleware prevents internal database exceptions and stack traces from leaking to clients in production mode.
+- **Error Sanitization**: Centralized error middleware prevents internal database exceptions and stack traces from leaking to clients in production mode.
+
+---
+
+## 🌐 Production Deployment Recommendations
+
+1. **HTTPS / TLS Termination**: Ensure traffic is routed over HTTPS so that `secure: true` cookies are properly delivered and protected.
+2. **Reverse Proxy / Load Balancer**: Place NGINX, Cloudflare, or AWS ALB in front of Node.js with `trust proxy` enabled if needed.
+3. **Database Connection Pooling**: For high-concurrency environments, configure PgBouncer with Prisma connection string pool sizing.
+4. **Environment Secrets**: Store `DATABASE_URL` and `JWT_SECRET` in a secure secret manager (e.g. AWS Secrets Manager, Vault, or GitHub Actions Secrets).

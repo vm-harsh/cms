@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Mail, Lock, GraduationCap, ArrowRight, ShieldCheck, UserCheck, BookOpen } from 'lucide-react';
+import { Mail, Lock, GraduationCap } from 'lucide-react';
 import Input from '../../components/common/Input';
 import Button from '../../components/common/Button';
 import { useAuth } from '../../hooks/useAuth';
@@ -54,57 +54,6 @@ export default function LoginPage() {
     }
   };
 
-  // Demo accounts for instant 1-click login
-  const demoAccounts = [
-    {
-      role: 'ADMIN',
-      name: 'System Admin',
-      email: 'admin@example.com',
-      badge: 'Full CRUD & Assignment',
-      icon: ShieldCheck,
-      color: 'border-purple-500/40 hover:bg-purple-950/20 text-purple-300',
-    },
-    {
-      role: 'FACULTY',
-      name: 'Dr. Sarah Smith',
-      email: 'dr.smith@example.com',
-      badge: 'Instructor 1 (Own Courses)',
-      icon: UserCheck,
-      color: 'border-blue-500/40 hover:bg-blue-950/20 text-blue-300',
-    },
-    {
-      role: 'FACULTY',
-      name: 'Prof. Michael Jones',
-      email: 'prof.jones@example.com',
-      badge: 'Instructor 2 (Own Courses)',
-      icon: UserCheck,
-      color: 'border-blue-500/40 hover:bg-blue-950/20 text-blue-300',
-    },
-    {
-      role: 'STUDENT',
-      name: 'Alice Williams',
-      email: 'alice.student@example.com',
-      badge: 'Student (Read-Only)',
-      icon: BookOpen,
-      color: 'border-emerald-500/40 hover:bg-emerald-950/20 text-emerald-300',
-    },
-  ];
-
-  const handleDemoLogin = async (demoEmail) => {
-    try {
-      setLoading(true);
-      setEmail(demoEmail);
-      setPassword('Password123!');
-      const user = await login({ email: demoEmail, password: 'Password123!' });
-      success(`Logged in as ${user.name} (${user.role})`);
-      handleRedirect(user.role);
-    } catch (err) {
-      toastError(err.message || 'Demo login failed');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative overflow-hidden">
       {/* Background Glow Accents */}
@@ -119,11 +68,11 @@ export default function LoginPage() {
           Welcome to EduCore
         </h2>
         <p className="mt-2 text-sm text-slate-400">
-          Course Management System with Role-Based Access Control
+          Sign in to access your course management dashboard
         </p>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-lg z-10 px-4 sm:px-0">
+      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md z-10 px-4 sm:px-0">
         {/* Main Login Card */}
         <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur-xl">
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -168,41 +117,6 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          {/* 1-Click Demo Evaluation Accounts */}
-          <div className="mt-8 pt-6 border-t border-slate-800">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                1-Click Demo Login
-              </span>
-              <span className="text-[11px] text-slate-500 font-mono">Password: Password123!</span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              {demoAccounts.map((demo) => {
-                const Icon = demo.icon;
-                return (
-                  <button
-                    key={demo.email}
-                    type="button"
-                    onClick={() => handleDemoLogin(demo.email)}
-                    disabled={loading}
-                    className={`flex items-start gap-2.5 p-2.5 rounded-xl border bg-slate-950/60 text-left transition-all duration-200 group ${demo.color}`}
-                  >
-                    <Icon className="w-4 h-4 mt-0.5 shrink-0" />
-                    <div className="flex flex-col min-w-0">
-                      <span className="text-xs font-semibold text-slate-200 group-hover:text-white truncate">
-                        {demo.name}
-                      </span>
-                      <span className="text-[10px] text-slate-400 truncate">
-                        {demo.badge}
-                      </span>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
           {/* Registration Link */}
           <div className="mt-6 text-center text-xs text-slate-400">
             Don't have an account?{' '}
@@ -210,7 +124,7 @@ export default function LoginPage() {
               to="/register"
               className="text-indigo-400 hover:text-indigo-300 font-semibold hover:underline"
             >
-              Register here
+              Register as student
             </Link>
           </div>
         </div>
