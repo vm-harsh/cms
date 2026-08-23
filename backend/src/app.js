@@ -35,7 +35,7 @@ app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(cookieParser());
 
 // Base API routes
-app.use('/', routes);
+app.use('/api', routes);
 
 // 404 handler for unrecognized endpoints
 app.use(notFoundHandler);
