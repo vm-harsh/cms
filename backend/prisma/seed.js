@@ -12,7 +12,7 @@ const prisma = new PrismaClient();
  * Reads ADMIN_NAME, ADMIN_EMAIL, and ADMIN_PASSWORD from environment variables.
  * Creates the initial Admin user if one does not already exist without wiping or altering existing data.
  */
-async function provisionInitialAdmin(prismaClient = prisma) {
+async function seedDatabase(prismaClient = prisma) {
   const adminName = process.env.ADMIN_NAME || 'System Administrator';
   const adminEmail = process.env.ADMIN_EMAIL ? process.env.ADMIN_EMAIL.toLowerCase() : null;
   const adminPassword = process.env.ADMIN_PASSWORD;
@@ -57,7 +57,7 @@ async function provisionInitialAdmin(prismaClient = prisma) {
 
 async function main() {
   console.log('🚀 Running database initialization...');
-  await provisionInitialAdmin(prisma);
+  await seedDatabase(prisma);
   console.log('✨ Initialization completed.');
 }
 
@@ -72,4 +72,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = { provisionInitialAdmin };
+module.exports = { seedDatabase };

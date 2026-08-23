@@ -317,6 +317,7 @@ VITE_API_URL="https://api.yourdomain.com/api"
 ```bash
 cd backend
 npm install
+npm run build     # Generates Prisma Client
 npx prisma db push
 ```
 
@@ -330,6 +331,7 @@ npm run prisma:seed
 ```bash
 cd ../frontend
 npm install
+npm run build
 ```
 
 ---
@@ -349,8 +351,9 @@ npm run dev
 
 ### Running in Production
 ```bash
-# Backend Production Startup
+# Backend Production Build & Startup
 cd backend
+npm run build
 NODE_ENV=production node src/server.js
 
 # Frontend Production Build
