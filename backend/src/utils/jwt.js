@@ -31,7 +31,8 @@ function getCookieOptions() {
   return {
     httpOnly: true,
     secure: isProduction,
-    sameSite: isProduction ? 'strict' : 'lax',
+    sameSite: "none",
+    secure: true,
     maxAge: config.jwt.cookieMaxAge,
     path: '/',
   };
