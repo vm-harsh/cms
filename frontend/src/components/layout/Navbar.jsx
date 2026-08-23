@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Menu, LogOut, User } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../hooks/useToast';
@@ -9,12 +9,13 @@ export default function Navbar({ onOpenMobileNav }) {
   const { user, logout } = useAuth();
   const { success, error: toastError } = useToast();
   const navigate = useNavigate();
-
+  const location = useLocation();
   const handleLogout = async () => {
     try {
       await logout();
       success('Logged out successfully');
-      navigate('/login');
+      navigate('/login', { replace: true });
+      location.pathname = null;
     } catch {
       toastError('Failed to logout cleanly');
     }
