@@ -557,3 +557,23 @@ describe('6. Data Validation & Constraints', () => {
     expect(res.body.success).toBe(false);
   });
 });
+
+describe('7. Swagger API Documentation Endpoints', () => {
+  it('Should serve interactive Swagger UI documentation at GET /api/docs', async () => {
+    const res = await request(app).get('/api/docs/');
+    expect(res.status).toBe(200);
+    expect(res.text).toContain('swagger-ui');
+    expect(res.text).toContain('EduCore API Documentation');
+  });
+
+  it('Should serve valid OpenAPI 3.0 JSON specification at GET /api/docs.json', async () => {
+    const res = await request(app).get('/api/docs.json');
+    expect(res.status).toBe(200);
+    expect(res.body.openapi).toBe('3.0.0');
+    expect(res.body.info.title).toContain('EduCore');
+    expect(res.body.paths['/auth/login']).toBeDefined();
+    expect(res.body.paths['/courses']).toBeDefined();
+    expect(res.body.paths['/admin/admins']).toBeDefined();
+  });
+});
+

@@ -197,6 +197,11 @@ Backend enforcement prevents unauthorized mutations regardless of client-side st
 
 ## 📡 API Documentation
 
+### Interactive Swagger UI Documentation
+EduCore provides an interactive OpenAPI 3.0 specification and Swagger UI dashboard:
+- **Interactive Swagger UI**: `http://localhost:5000/api/docs`
+- **Raw OpenAPI JSON Spec**: `http://localhost:5000/api/docs.json`
+
 ### Authentication Endpoints
 - `POST /api/auth/register` - Public student registration (strictly creates `STUDENT`).
 - `POST /api/auth/login` - Authenticate user credentials and set `httpOnly` cookie.
@@ -220,6 +225,11 @@ Backend enforcement prevents unauthorized mutations regardless of client-side st
 ### User & Analytics Endpoints
 - `GET /api/users/faculty` - List faculty members for dropdowns.
 - `GET /api/users/stats` - Fetch dashboard metrics tailored to caller role.
+
+### System Endpoints
+- `GET /api/health` - API service health and status check.
+- `GET /api/docs` - Interactive Swagger UI documentation.
+- `GET /api/docs.json` - OpenAPI 3.0 specification JSON.
 
 ---
 
