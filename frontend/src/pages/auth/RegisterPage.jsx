@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { User, Mail, Lock, GraduationCap, ShieldCheck } from 'lucide-react';
+import { User, Mail, Lock, GraduationCap, CheckCircle2 } from 'lucide-react';
 import Input from '../../components/common/Input';
-import Select from '../../components/common/Select';
 import Button from '../../components/common/Button';
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../hooks/useToast';
@@ -12,7 +11,7 @@ export default function RegisterPage() {
     name: '',
     email: '',
     password: '',
-    role: 'STUDENT',
+    confirmPassword: '',
   });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
@@ -31,14 +30,29 @@ export default function RegisterPage() {
 
   const validate = () => {
     const errs = {};
-    if (!formData.name.trim()) errs.name = 'Full name is required';
-    else if (formData.name.trim().length < 2) errs.name = 'Name must be at least 2 characters';
+    if (!formData.name.trim()) {
+      errs.name = 'Full name is required';
+    } else if (formData.name.trim().length < 2) {
+      errs.name = 'Name must be at least 2 characters';
+    }
 
-    if (!formData.email.trim()) errs.email = 'Email address is required';
-    else if (!/\S+@\S+\.\S+/.test(formData.email)) errs.email = 'Invalid email address format';
+    if (!formData.email.trim()) {
+      errs.email = 'Email address is required';
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      errs.email = 'Invalid email address format';
+    }
 
-    if (!formData.password) errs.password = 'Password is required';
-    else if (formData.password.length < 6) errs.password = 'Password must be at least 6 characters long';
+    if (!formData.password) {
+      errs.password = 'Password is required';
+    } else if (formData.password.length < 6) {
+      errs.password = 'Password must be at least 6 characters long';
+    }
+
+    if (!formData.confirmPassword) {
+      errs.confirmPassword = 'Please confirm your password';
+    } else if (formData.password !== formData.confirmPassword) {
+      errs.confirmPassword = 'Passwords do not match';
+    }
 
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -50,12 +64,14 @@ export default function RegisterPage() {
 
     try {
       setLoading(true);
-      const user = await register(formData);
+      // Public registration strictly creates a Student account
+      const user = await register({
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+      });
       success(`Welcome to EduCore, ${user.name}!`);
-
-      if (user.role === 'ADMIN') navigate('/admin/dashboard', { replace: true });
-      else if (user.role === 'FACULTY') navigate('/faculty/dashboard', { replace: true });
-      else navigate('/student/dashboard', { replace: true });
+      navigate('/student/dashboard', { replace: true });
     } catch (err) {
       toastError(err.message || 'Registration failed.');
     } finally {
@@ -72,10 +88,10 @@ export default function RegisterPage() {
           <GraduationCap className="w-8 h-8" />
         </div>
         <h2 className="text-3xl font-extrabold text-slate-100 tracking-tight">
-          Create an Account
+          Create Student Account
         </h2>
         <p className="mt-2 text-sm text-slate-400">
-          Join the Course Management System platform
+          Register to browse available courses and access curriculum syllabi
         </p>
       </div>
 
@@ -117,19 +133,22 @@ export default function RegisterPage() {
               error={errors.password}
             />
 
-            <Select
-              label="Account Role"
-              name="role"
+            <Input
+              label="Confirm Password"
+              name="confirmPassword"
+              type="password"
+              placeholder="Re-enter password"
+              icon={Lock}
               required
-              value={formData.role}
+              value={formData.confirmPassword}
               onChange={handleChange}
-              options={[
-                { value: 'STUDENT', label: 'Student (Browse Catalog & View Courses)' },
-                { value: 'FACULTY', label: 'Faculty (Manage & Teach Assigned Courses)' },
-                { value: 'ADMIN', label: 'Administrator (System Management & Assignment)' },
-              ]}
-              helperText="Determines access level and dashboard capabilities"
+              error={errors.confirmPassword}
             />
+
+            <div className="p-3 rounded-xl bg-indigo-950/40 border border-indigo-800/40 flex items-center gap-2.5 text-xs text-indigo-300">
+              <CheckCircle2 className="w-4 h-4 shrink-0 text-indigo-400" />
+              <span>Public accounts are registered as <strong>Student</strong> learners.</span>
+            </div>
 
             <Button
               type="submit"
@@ -138,7 +157,7 @@ export default function RegisterPage() {
               loading={loading}
               className="w-full mt-2"
             >
-              Create Account
+              Register Account
             </Button>
           </form>
 

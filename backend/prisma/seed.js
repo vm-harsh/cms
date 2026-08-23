@@ -1,66 +1,78 @@
+const path = require('path');
+const dotenv = require('dotenv');
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
+
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
 
 const prisma = new PrismaClient();
 
-async function main() {
+async function seedDatabase(prismaClient = prisma, { clean = true } = {}) {
   console.log('🌱 Starting database seed...');
 
-  // Clean existing records in reverse dependency order
-  await prisma.course.deleteMany();
-  await prisma.user.deleteMany();
+  // Read Admin credentials from environment variables
+  const adminName = process.env.ADMIN_NAME || 'System Administrator';
+  const adminEmail = (process.env.ADMIN_EMAIL || 'admin@example.com').toLowerCase();
+  const adminPassword = process.env.ADMIN_PASSWORD || 'Password123!';
+
+  // Clean existing records in reverse dependency order if requested
+  if (clean) {
+    await prismaClient.course.deleteMany();
+    await prismaClient.user.deleteMany();
+  }
 
   const salt = await bcrypt.genSalt(10);
-  const passwordHash = await bcrypt.hash('Password123!', salt);
+  const adminPasswordHash = await bcrypt.hash(adminPassword, salt);
+  const standardPasswordHash = await bcrypt.hash('Password123!', salt);
 
-  // 1. Create Admin
-  const admin = await prisma.user.create({
+  // 1. Create Initial Admin from Environment Variables
+  const admin = await prismaClient.user.create({
     data: {
-      name: 'System Administrator',
-      email: 'admin@example.com',
-      passwordHash,
+      name: adminName,
+      email: adminEmail,
+      passwordHash: adminPasswordHash,
       role: 'ADMIN',
     },
   });
-  console.log(`✅ Admin created: ${admin.email}`);
+  console.log(`✅ Initial Admin created from ENV: ${admin.email} (${admin.name})`);
 
   // 2. Create Faculty
-  const faculty1 = await prisma.user.create({
+  const faculty1 = await prismaClient.user.create({
     data: {
       name: 'Dr. Sarah Smith',
       email: 'dr.smith@example.com',
-      passwordHash,
+      passwordHash: standardPasswordHash,
       role: 'FACULTY',
     },
   });
   console.log(`✅ Faculty 1 created: ${faculty1.email}`);
 
-  const faculty2 = await prisma.user.create({
+  const faculty2 = await prismaClient.user.create({
     data: {
       name: 'Prof. Michael Jones',
       email: 'prof.jones@example.com',
-      passwordHash,
+      passwordHash: standardPasswordHash,
       role: 'FACULTY',
     },
   });
   console.log(`✅ Faculty 2 created: ${faculty2.email}`);
 
   // 3. Create Students
-  const student1 = await prisma.user.create({
+  const student1 = await prismaClient.user.create({
     data: {
       name: 'Alice Williams',
       email: 'alice.student@example.com',
-      passwordHash,
+      passwordHash: standardPasswordHash,
       role: 'STUDENT',
     },
   });
   console.log(`✅ Student 1 created: ${student1.email}`);
 
-  const student2 = await prisma.user.create({
+  const student2 = await prismaClient.user.create({
     data: {
       name: 'Bob Davis',
       email: 'bob.student@example.com',
-      passwordHash,
+      passwordHash: standardPasswordHash,
       role: 'STUDENT',
     },
   });
@@ -119,18 +131,26 @@ async function main() {
   ];
 
   for (const courseData of courses) {
-    const course = await prisma.course.create({ data: courseData });
+    const course = await prismaClient.course.create({ data: courseData });
     console.log(`📚 Course created: [${course.courseCode}] ${course.title}`);
   }
 
   console.log('✨ Database seeding completed successfully!');
 }
 
-main()
-  .catch((e) => {
-    console.error('❌ Seeding error:', e);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+async function main() {
+  await seedDatabase(prisma, { clean: true });
+}
+
+if (require.main === module) {
+  main()
+    .catch((e) => {
+      console.error('❌ Seeding error:', e);
+      process.exit(1);
+    })
+    .finally(async () => {
+      await prisma.$disconnect();
+    });
+}
+
+module.exports = { seedDatabase };

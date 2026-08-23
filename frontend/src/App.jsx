@@ -18,6 +18,9 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminCoursesPage from './pages/admin/AdminCoursesPage';
 import AdminCreateCoursePage from './pages/admin/AdminCreateCoursePage';
 import AdminEditCoursePage from './pages/admin/AdminEditCoursePage';
+import AdminFacultyPage from './pages/admin/AdminFacultyPage';
+import AdminAdminsPage from './pages/admin/AdminAdminsPage';
+import AdminStudentsPage from './pages/admin/AdminStudentsPage';
 
 // Faculty Pages
 import FacultyDashboard from './pages/faculty/FacultyDashboard';
@@ -91,6 +94,30 @@ export default function App() {
           element={
             <RoleGuard allowedRoles={['ADMIN']}>
               <AdminEditCoursePage />
+            </RoleGuard>
+          }
+        />
+        <Route
+          path="/admin/faculty"
+          element={
+            <RoleGuard allowedRoles={['ADMIN']}>
+              <AdminFacultyPage />
+            </RoleGuard>
+          }
+        />
+        <Route
+          path="/admin/admins"
+          element={
+            <RoleGuard allowedRoles={['ADMIN']}>
+              <AdminAdminsPage />
+            </RoleGuard>
+          }
+        />
+        <Route
+          path="/admin/students"
+          element={
+            <RoleGuard allowedRoles={['ADMIN']}>
+              <AdminStudentsPage />
             </RoleGuard>
           }
         />

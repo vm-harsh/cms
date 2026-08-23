@@ -7,7 +7,8 @@ import {
   GraduationCap,
   Sparkles,
   Shield,
-  Layers,
+  UserCheck,
+  Users,
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import Badge from '../common/Badge';
@@ -18,9 +19,11 @@ export default function Sidebar({ className = '' }) {
   const getLinks = () => {
     if (isAdmin) {
       return [
-        { to: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-        { to: '/admin/courses', label: 'All Courses', icon: BookOpen },
-        { to: '/admin/courses/create', label: 'Create Course', icon: PlusCircle },
+        { to: '/admin/dashboard', label: 'Overview', icon: LayoutDashboard },
+        { to: '/admin/courses', label: 'Courses', icon: BookOpen },
+        { to: '/admin/faculty', label: 'Faculty', icon: UserCheck },
+        { to: '/admin/students', label: 'Students', icon: GraduationCap },
+        { to: '/admin/admins', label: 'Administrators', icon: Shield },
       ];
     }
     if (isFaculty) {

@@ -6,9 +6,11 @@ const { ROLES } = require('../constants/roles');
 
 class AuthService {
   /**
-   * Register a new user
+   * Register a new user via public registration.
+   * SECURITY RULE: Public registration ALWAYS creates a STUDENT account.
+   * Any client-supplied role is ignored to prevent privilege escalation.
    */
-  async register({ name, email, password, role = ROLES.STUDENT }) {
+  async register({ name, email, password }) {
     // Check for existing user with same email
     const existingUser = await prisma.user.findUnique({
       where: { email: email.toLowerCase() },
@@ -22,13 +24,13 @@ class AuthService {
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(password, salt);
 
-    // Create user record
+    // Create user record strictly as STUDENT
     const user = await prisma.user.create({
       data: {
         name,
         email: email.toLowerCase(),
         passwordHash,
-        role,
+        role: ROLES.STUDENT,
       },
       select: {
         id: true,

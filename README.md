@@ -7,22 +7,23 @@ A production-grade, full-stack **Course Management System** built with **React**
 ## 📑 Table of Contents
 
 1. [Project Overview](#-project-overview)
-2. [Key Features](#-key-features)
-3. [Technology Stack](#-technology-stack)
-4. [System Architecture](#-system-architecture)
-5. [Database Schema](#-database-schema)
-6. [Authentication Strategy](#-authentication-strategy)
-7. [Authorization & RBAC Strategy](#-authorization--rbac-strategy)
-8. [API Documentation](#-api-documentation)
-9. [Project Structure](#-project-structure)
-10. [Environment Variables](#-environment-variables)
-11. [Installation & Setup](#-installation--setup)
-12. [Database Migrations & Seeding](#-database-migrations--seeding)
-13. [Running Backend & Frontend](#-running-backend--frontend)
-14. [Automated Testing](#-automated-testing)
-15. [Demo Credentials](#-demo-credentials)
-16. [Security Considerations](#-security-considerations)
-17. [Future Enhancements](#-future-enhancements)
+2. [User Provisioning & Account Lifecycle Model](#-user-provisioning--account-lifecycle-model)
+3. [Key Features](#-key-features)
+4. [Technology Stack](#-technology-stack)
+5. [System Architecture](#-system-architecture)
+6. [Database Schema](#-database-schema)
+7. [Authentication Strategy](#-authentication-strategy)
+8. [Authorization & RBAC Strategy](#-authorization--rbac-strategy)
+9. [API Documentation](#-api-documentation)
+10. [Project Structure](#-project-structure)
+11. [Environment Variables](#-environment-variables)
+12. [Installation & Setup](#-installation--setup)
+13. [Database Migrations & Seeding](#-database-migrations--seeding)
+14. [Running Backend & Frontend](#-running-backend--frontend)
+15. [Automated Testing](#-automated-testing)
+16. [Demo Credentials](#-demo-credentials)
+17. [Security Considerations](#-security-considerations)
+18. [Future Enhancements](#-future-enhancements)
 
 ---
 
@@ -32,13 +33,44 @@ EduCore is a multi-role institutional Course Management System that streamlines 
 
 ---
 
+## 👥 User Provisioning & Account Lifecycle Model
+
+The platform follows a secure and hierarchical account-provisioning architecture:
+
+```
+┌───────────────────────────┐
+│     Initial Admin         │  ─── Created exclusively via Prisma Database Seed
+│ (ADMIN_EMAIL / PASSWORD)  │
+└─────────────┬─────────────┘
+              │
+              ▼
+┌───────────────────────────┐
+│ Authenticated Admin Portal│  ─── Can provision additional Admins (POST /api/admin/admins)
+│   (POST /api/admin/*)     │  ─── Can provision Faculty members (POST /api/admin/faculty)
+└───────────────────────────┘
+              │
+              ▼
+┌───────────────────────────┐
+│    Public Registration    │  ─── Open registration (/register, POST /api/auth/register)
+│   (role = STUDENT only)   │  ─── Hardcoded on backend to STUDENT; role selection disallowed
+└───────────────────────────┘
+```
+
+### Why Role Self-Selection Is Disallowed During Public Registration
+Allowing clients to supply a `role` parameter during public signup is a critical security vulnerability (Mass Assignment / Privilege Escalation). In EduCore:
+- **Public registration** strictly requires `name`, `email`, and `password` and **always sets `role = STUDENT`** on the backend.
+- Any client attempting to manually inject `role: "ADMIN"` or `role: "FACULTY"` into `POST /api/auth/register` has the field discarded and is registered strictly as a `STUDENT`.
+- **Faculty and Admin accounts** must be explicitly created by an authenticated Administrator via protected endpoints (`POST /api/admin/faculty` and `POST /api/admin/admins`).
+
+---
+
 ## ✨ Key Features
 
-- **Strict Multi-Role Access Control (RBAC)**: Backend-enforced authorization ensuring students cannot mutate courses and faculty cannot modify or delete courses assigned to peers.
-- **JWT Authentication via HTTP-Only Cookies**: Resistant to XSS credential extraction, combined with SameSite cookie policies and automated session renewal.
+- **Strict Multi-Role Access Control (RBAC)**: Backend-enforced authorization ensuring students cannot mutate courses, faculty cannot modify peer courses, and only Admins can provision privileged accounts.
+- **Dedicated Admin Management Sections**: Full administrative dashboards for managing **Courses**, **Faculty**, **Students**, and **Administrators**.
+- **JWT Authentication via HTTP-Only Cookies**: Resistant to XSS credential extraction, combined with SameSite cookie policies and automated session hydration (`GET /api/auth/me`).
 - **Relational PostgreSQL Modeling with Prisma**: Parameterized database queries, foreign key constraints, and relational indexes on email and courseCode.
-- **1-Click Assessment Evaluation Switcher**: Instant role-switching and preloaded demo credentials on the login screen for rapid assessment grading.
-- **Full Course Lifecycle Management**: Create, Read, Update, and Delete operations with search, instructor filtering, and inline validation.
+- **Full Course Lifecycle Management**: Create, Read, Update, and Delete operations with real-time keyword search, instructor filtering, and inline validation.
 - **Responsive SaaS UI**: Mobile drawer navigation, adaptive tables that transform into card lists on small screens, dark-mode styling, and micro-animations.
 - **Robust UI State Handling**: Animated skeleton loaders, empty states, error retry banners, toast notifications, and delete confirmation dialogs.
 
@@ -62,7 +94,7 @@ EduCore is a multi-role institutional Course Management System that streamlines 
 - **Helmet, CORS, Morgan, & Express Rate Limit** (Production-grade security middleware)
 
 ### Testing
-- **Vitest** & **Supertest** (Automated integration and RBAC authorization test suite)
+- **Vitest** & **Supertest** (Automated integration and RBAC authorization test suite with 32+ passing assertions)
 
 ---
 
@@ -151,11 +183,11 @@ erDiagram
 
 Backend enforcement prevents unauthorized mutations regardless of client-side state:
 
-| Role | Browse / View Details | Create Course | Update Own Course | Update Other's Course | Delete Own Course | Delete Other's Course |
-|---|---|---|---|---|---|---|
-| **ADMIN** | ✅ All Courses | ✅ Any Faculty | ✅ Allowed | ✅ Allowed | ✅ Allowed | ✅ Allowed |
-| **FACULTY** | ✅ Own Courses Only | ✅ Self-Assigned | ✅ Allowed | ❌ 403 Forbidden | ✅ Allowed | ❌ 403 Forbidden |
-| **STUDENT** | ✅ All Available | ❌ 403 Forbidden | ❌ 403 Forbidden | ❌ 403 Forbidden | ❌ 403 Forbidden | ❌ 403 Forbidden |
+| Role | Browse / View Details | Create Course | Update Own Course | Update Other's Course | Delete Own Course | Delete Other's Course | Create Admin/Faculty |
+|---|---|---|---|---|---|---|---|
+| **ADMIN** | ✅ All Courses | ✅ Any Faculty | ✅ Allowed | ✅ Allowed | ✅ Allowed | ✅ Allowed | ✅ Allowed |
+| **FACULTY** | ✅ Own Courses Only | ✅ Self-Assigned | ✅ Allowed | ❌ 403 Forbidden | ✅ Allowed | ❌ 403 Forbidden | ❌ 403 Forbidden |
+| **STUDENT** | ✅ All Available | ❌ 403 Forbidden | ❌ 403 Forbidden | ❌ 403 Forbidden | ❌ 403 Forbidden | ❌ 403 Forbidden | ❌ 403 Forbidden |
 
 ### Middleware Flow
 - `authenticateUser`: Validates JWT token from cookie or Authorization header and loads user from DB.
@@ -167,10 +199,17 @@ Backend enforcement prevents unauthorized mutations regardless of client-side st
 ## 📡 API Documentation
 
 ### Authentication Endpoints
-- `POST /api/auth/register` - Create new user account (defaults to `STUDENT`).
+- `POST /api/auth/register` - Public student registration (strictly creates `STUDENT`).
 - `POST /api/auth/login` - Authenticate user credentials and set `httpOnly` cookie.
 - `POST /api/auth/logout` - Clear session cookie.
 - `GET  /api/auth/me` - Retrieve authenticated user profile.
+
+### Administrator Endpoints (`requireRole(ADMIN)`)
+- `POST /api/admin/admins` - Provision a new Administrator account.
+- `GET  /api/admin/admins` - List all system administrators.
+- `POST /api/admin/faculty` - Provision a new Faculty teaching account.
+- `GET  /api/admin/faculty` - List all faculty members with assigned course counts.
+- `GET  /api/admin/students` - List all registered student learners.
 
 ### Course Endpoints
 - `GET    /api/courses` - List courses (scoped by role: Admin/Student see all, Faculty see assigned).
@@ -180,7 +219,7 @@ Backend enforcement prevents unauthorized mutations regardless of client-side st
 - `DELETE /api/courses/:id` - Delete course (Admin or course-owning Faculty).
 
 ### User & Analytics Endpoints
-- `GET /api/users/faculty` - List faculty members (Admin/Faculty only).
+- `GET /api/users/faculty` - List faculty members for dropdowns.
 - `GET /api/users/stats` - Fetch dashboard metrics tailored to caller role.
 
 ---
@@ -192,20 +231,20 @@ course_management_system/
 ├── backend/
 │   ├── prisma/
 │   │   ├── schema.prisma       # Database models & relationships
-│   │   └── seed.js             # Initial database seed script
+│   │   └── seed.js             # Initial database seed script reading ENV credentials
 │   ├── src/
 │   │   ├── config/             # Environment & Prisma client singleton
 │   │   ├── constants/          # Role constants and enums
-│   │   ├── controllers/        # Express route controllers
+│   │   ├── controllers/        # Express route controllers (auth, admin, course, user)
 │   │   ├── middleware/         # Auth, RBAC, Validation, Error Handling, Rate Limiting
-│   │   ├── routes/             # REST route definitions
+│   │   ├── routes/             # REST route definitions (/api/auth, /api/admin, /api/courses, /api/users)
 │   │   ├── services/           # Business logic & Prisma query execution
 │   │   ├── utils/              # ApiError, ApiResponse, JWT utilities
 │   │   ├── validators/         # Zod schemas for request validation
 │   │   ├── app.js              # Express app configuration
 │   │   └── server.js           # Server startup script
 │   ├── tests/
-│   │   └── auth_rbac.test.js   # Automated Supertest integration test suite
+│   │   └── auth_rbac.test.js   # Automated Vitest + Supertest integration test suite (32 tests)
 │   ├── vitest.config.js        # Vitest configuration
 │   ├── .env.example            # Environment variable documentation
 │   ├── .env                    # Local environment settings
@@ -221,12 +260,12 @@ course_management_system/
 │   │   ├── context/            # AuthContext, ToastContext
 │   │   ├── hooks/              # useAuth, useToast
 │   │   ├── pages/
-│   │   │   ├── admin/          # Admin Dashboard, Course Table, Create, Edit
+│   │   │   ├── admin/          # Admin Dashboard, Courses, Faculty, Admins, Students
 │   │   │   ├── faculty/        # Faculty Dashboard, Course Table, Create, Edit
 │   │   │   ├── student/        # Student Dashboard, Catalog, Course Details
-│   │   │   ├── auth/           # Login (1-click Demo), Register
+│   │   │   ├── auth/           # Login (1-click Demo), Register (Student-only)
 │   │   │   └── common/         # Unauthorized (403), NotFound (404)
-│   │   ├── services/           # Axios API service clients
+│   │   ├── services/           # Axios API service clients (auth, admin, course, user)
 │   │   ├── utils/              # Class merging (cn), formatters
 │   │   ├── App.jsx             # Route definitions & guards
 │   │   ├── main.jsx            # React root with Providers
@@ -251,6 +290,11 @@ DATABASE_URL="postgresql://postgres:postgres@localhost:5432/course_management?sc
 JWT_SECRET="cms_jwt_super_secure_key_founding_engineer_assessment_2026"
 JWT_EXPIRES_IN="7d"
 CLIENT_URL="http://localhost:5173"
+
+# Initial Admin User Credentials (for Prisma seed)
+ADMIN_NAME="System Administrator"
+ADMIN_EMAIL="admin@example.com"
+ADMIN_PASSWORD="Password123!"
 ```
 
 ---
@@ -307,7 +351,7 @@ npm run dev
 
 ## 🧪 Automated Testing
 
-The backend test suite verifies all 14 critical RBAC rules, authentication flows, error handlers, and constraint validations using Vitest and Supertest:
+The backend test suite verifies all 32 critical authorization, registration, user management, and API constraint scenarios:
 
 ```bash
 cd backend
@@ -315,46 +359,40 @@ npm test
 ```
 
 ### Test Coverage Highlights:
-- ✅ Unauthenticated requests return `401 Unauthorized`.
-- ✅ Valid login issues secure `httpOnly` cookie and hides `passwordHash`.
+- ✅ Public registration creates `STUDENT`.
+- ✅ Public registration cannot create `ADMIN` (even when client explicitly sends `role: "ADMIN"`).
+- ✅ Public registration cannot create `FACULTY` (even when client explicitly sends `role: "FACULTY"`).
+- ✅ Admin CAN create another Admin via `POST /api/admin/admins`.
+- ✅ Admin CAN create Faculty via `POST /api/admin/faculty`.
+- ✅ Faculty and Students receive `403 Forbidden` attempting to create Admin or Faculty accounts.
+- ✅ Unauthenticated requests to protected endpoints return `401 Unauthorized`.
 - ✅ Admin has full CRUD on any course and can assign courses to Faculty.
-- ✅ Faculty can create and update own courses.
-- ✅ Faculty **CANNOT** update or delete another faculty member's course (`403 Forbidden`).
-- ✅ Students can view catalog courses and details.
-- ✅ Students **CANNOT** create, update, or delete courses (`403 Forbidden`).
-- ✅ Duplicate `courseCode` returns `409 Conflict`.
-- ✅ Invalid payloads trigger `400 Bad Request` with structured error messages.
+- ✅ Faculty can create and update own courses, but receive `403 Forbidden` modifying another faculty member's course.
+- ✅ Students can browse catalog courses and view syllabus details, but receive `403 Forbidden` attempting to mutate courses.
+- ✅ Duplicate `courseCode` and duplicate emails return `409 Conflict`.
+- ✅ Validation errors return `400 Bad Request` with structured error messages.
 
 ---
 
 ## 👥 Demo Credentials
 
-The application includes built-in **1-Click Demo Login** buttons on the login screen for instant evaluation:
+The application includes seeded accounts and convenient demo evaluation tools:
 
 | Role | Name | Email | Password | Permissions |
 |---|---|---|---|---|
-| **ADMIN** | System Administrator | `admin@example.com` | `Password123!` | Full CRUD on all courses, assign instructors |
+| **ADMIN** | System Administrator | `admin@example.com` | `Password123!` | Full CRUD on all courses, create Admins, create Faculty |
 | **FACULTY** | Dr. Sarah Smith | `dr.smith@example.com` | `Password123!` | Manage own courses (`CS101`, `CS201`, `CS501`, `CS701`) |
 | **FACULTY** | Prof. Michael Jones | `prof.jones@example.com` | `Password123!` | Manage own courses (`CS301`, `CS401`, `CS601`) |
-| **STUDENT** | Alice Williams | `alice.student@example.com` | `Password123!` | Read-only catalog browsing & details |
-| **STUDENT** | Bob Davis | `bob.student@example.com` | `Password123!` | Read-only catalog browsing & details |
+| **STUDENT** | Alice Williams | `alice.student@example.com` | `Password123!` | Read-only catalog browsing & syllabus details |
+| **STUDENT** | Bob Davis | `bob.student@example.com` | `Password123!` | Read-only catalog browsing & syllabus details |
 
 ---
 
 ## 🔒 Security Considerations
 
+- **Privilege Escalation Prevention**: Public registration completely ignores client role inputs and assigns `STUDENT`. Creation of `ADMIN` and `FACULTY` accounts requires authenticated Admin privileges (`POST /api/admin/*`).
 - **XSS Mitigation**: Authentication tokens are never stored in `localStorage` or `sessionStorage`. They are stored in `httpOnly`, `SameSite=Lax` cookies.
 - **SQL Injection Prevention**: Prisma ORM uses parameterized queries under the hood for all database access.
-- **Role Verification**: Roles are never trusted from frontend payload; all authorization is derived strictly from the authenticated database user attached via JWT verification middleware.
 - **Rate Limiting**: Auth endpoints (`/api/auth/register`, `/api/auth/login`) are protected by `express-rate-limit` to mitigate brute force attacks.
 - **Security Headers**: `helmet` is enabled to configure standard HTTP security headers.
 - **Clean Errors**: Centralized error middleware prevents internal database exceptions and stack traces from leaking to clients in production mode.
-
----
-
-## 🚀 Future Enhancements
-
-- **Student Course Enrollment & Waitlists**: Allow students to register for active terms.
-- **Audit Logging**: Maintain an immutable changelog of course modifications and faculty assignments.
-- **Rich Media & Syllabus Uploads**: Attach PDF syllabi and course material downloads via cloud storage (S3/GCS).
-- **Pagination & Sorting**: Cursor-based database pagination for high-volume catalogs.

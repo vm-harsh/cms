@@ -1,12 +1,20 @@
 const app = require('./app');
 const config = require('./config/env');
 const prisma = require('./config/db');
+const { seedDatabase } = require('../prisma/seed');
 
 async function startServer() {
   try {
     // Verify database connection
     await prisma.$connect();
     console.log('✅ PostgreSQL database connected via Prisma');
+
+    // Auto-seed if database is empty
+    const userCount = await prisma.user.count();
+    if (userCount === 0) {
+      console.log('⚡ Empty database detected. Seeding initial data...');
+      await seedDatabase(prisma, { clean: false });
+    }
 
     const server = app.listen(config.port, () => {
       console.log(`🚀 Course Management System API running at http://localhost:${config.port}`);

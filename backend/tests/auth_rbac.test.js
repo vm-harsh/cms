@@ -112,7 +112,7 @@ afterAll(async () => {
   await prisma.$disconnect();
 });
 
-describe('1. Authentication & Session Management', () => {
+describe('1. Authentication, Public Registration & Privilege Escalation Prevention', () => {
   it('Should reject unauthenticated requests to protected endpoints with 401', async () => {
     const res = await request(app).get('/api/courses');
     expect(res.status).toBe(401);
@@ -150,19 +150,62 @@ describe('1. Authentication & Session Management', () => {
     expect(res.body.data.user.passwordHash).toBeUndefined();
   });
 
-  it('Should register a new student user and return 201', async () => {
+  it('Public registration MUST create a STUDENT account by default', async () => {
     const res = await request(app)
       .post('/api/auth/register')
       .send({
-        name: 'New Registered Student',
-        email: 'newstudent@example.com',
+        name: 'Normal Registered Student',
+        email: 'regularstudent@example.com',
         password: 'Password123!',
-        role: 'STUDENT',
       });
 
     expect(res.status).toBe(201);
     expect(res.body.success).toBe(true);
-    expect(res.body.data.user.email).toBe('newstudent@example.com');
+    expect(res.body.data.user.email).toBe('regularstudent@example.com');
+    expect(res.body.data.user.role).toBe('STUDENT');
+    expect(res.body.data.user.passwordHash).toBeUndefined();
+  });
+
+  it('Public registration MUST NOT create ADMIN even if client explicitly sends role=ADMIN', async () => {
+    const res = await request(app)
+      .post('/api/auth/register')
+      .send({
+        name: 'Attacker Admin Attempt',
+        email: 'attacker.admin@example.com',
+        password: 'Password123!',
+        role: 'ADMIN', // Client tries to escalate
+      });
+
+    expect(res.status).toBe(201);
+    // Role MUST still be STUDENT, never ADMIN
+    expect(res.body.data.user.role).toBe('STUDENT');
+    expect(res.body.data.user.role).not.toBe('ADMIN');
+
+    // Double check DB directly
+    const dbUser = await prisma.user.findUnique({
+      where: { email: 'attacker.admin@example.com' },
+    });
+    expect(dbUser.role).toBe('STUDENT');
+  });
+
+  it('Public registration MUST NOT create FACULTY even if client explicitly sends role=FACULTY', async () => {
+    const res = await request(app)
+      .post('/api/auth/register')
+      .send({
+        name: 'Attacker Faculty Attempt',
+        email: 'attacker.faculty@example.com',
+        password: 'Password123!',
+        role: 'FACULTY', // Client tries to escalate
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.data.user.role).toBe('STUDENT');
+    expect(res.body.data.user.role).not.toBe('FACULTY');
+
+    const dbUser = await prisma.user.findUnique({
+      where: { email: 'attacker.faculty@example.com' },
+    });
+    expect(dbUser.role).toBe('STUDENT');
   });
 
   it('Should reject registration with already registered email with 409 Conflict', async () => {
@@ -179,7 +222,126 @@ describe('1. Authentication & Session Management', () => {
   });
 });
 
-describe('2. Admin RBAC Authorization', () => {
+describe('2. Admin Management & Account Provisioning (ADMIN, FACULTY, STUDENT)', () => {
+  it('Admin CAN create another Administrator via POST /api/admin/admins', async () => {
+    const res = await request(app)
+      .post('/api/admin/admins')
+      .set('Cookie', [adminCookie])
+      .send({
+        name: 'Secondary Administrator',
+        email: 'second.admin@example.com',
+        password: 'Password123!',
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.user.role).toBe('ADMIN');
+    expect(res.body.data.user.email).toBe('second.admin@example.com');
+    expect(res.body.data.user.passwordHash).toBeUndefined();
+
+    // Verify hashed in DB
+    const dbUser = await prisma.user.findUnique({
+      where: { email: 'second.admin@example.com' },
+    });
+    expect(dbUser.passwordHash).toBeDefined();
+    expect(dbUser.passwordHash).not.toBe('Password123!');
+  });
+
+  it('Admin CAN create a Faculty member via POST /api/admin/faculty', async () => {
+    const res = await request(app)
+      .post('/api/admin/faculty')
+      .set('Cookie', [adminCookie])
+      .send({
+        name: 'Dr. Newly Created',
+        email: 'dr.newly@example.com',
+        password: 'Password123!',
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.user.role).toBe('FACULTY');
+    expect(res.body.data.user.email).toBe('dr.newly@example.com');
+    expect(res.body.data.user.passwordHash).toBeUndefined();
+  });
+
+  it('Faculty MUST receive 403 Forbidden when attempting to create Admin', async () => {
+    const res = await request(app)
+      .post('/api/admin/admins')
+      .set('Cookie', [faculty1Cookie])
+      .send({
+        name: 'Unauthorized Admin by Faculty',
+        email: 'unauth.admin@example.com',
+        password: 'Password123!',
+      });
+
+    expect(res.status).toBe(403);
+    expect(res.body.success).toBe(false);
+  });
+
+  it('Faculty MUST receive 403 Forbidden when attempting to create Faculty', async () => {
+    const res = await request(app)
+      .post('/api/admin/faculty')
+      .set('Cookie', [faculty1Cookie])
+      .send({
+        name: 'Unauthorized Faculty by Faculty',
+        email: 'unauth.faculty@example.com',
+        password: 'Password123!',
+      });
+
+    expect(res.status).toBe(403);
+    expect(res.body.success).toBe(false);
+  });
+
+  it('Student MUST receive 403 Forbidden when attempting to create Admin', async () => {
+    const res = await request(app)
+      .post('/api/admin/admins')
+      .set('Cookie', [studentCookie])
+      .send({
+        name: 'Unauthorized Admin by Student',
+        email: 'student.fakeadmin@example.com',
+        password: 'Password123!',
+      });
+
+    expect(res.status).toBe(403);
+    expect(res.body.success).toBe(false);
+  });
+
+  it('Student MUST receive 403 Forbidden when attempting to create Faculty', async () => {
+    const res = await request(app)
+      .post('/api/admin/faculty')
+      .set('Cookie', [studentCookie])
+      .send({
+        name: 'Unauthorized Faculty by Student',
+        email: 'student.fakefaculty@example.com',
+        password: 'Password123!',
+      });
+
+    expect(res.status).toBe(403);
+    expect(res.body.success).toBe(false);
+  });
+
+  it('Unauthenticated user MUST receive 401 Unauthorized for /api/admin/admins and /api/admin/faculty', async () => {
+    const resAdmin = await request(app)
+      .post('/api/admin/admins')
+      .send({
+        name: 'Anon Admin',
+        email: 'anon.admin@example.com',
+        password: 'Password123!',
+      });
+    expect(resAdmin.status).toBe(401);
+
+    const resFaculty = await request(app)
+      .post('/api/admin/faculty')
+      .send({
+        name: 'Anon Faculty',
+        email: 'anon.faculty@example.com',
+        password: 'Password123!',
+      });
+    expect(resFaculty.status).toBe(401);
+  });
+});
+
+describe('3. Admin RBAC Authorization on Courses', () => {
   let createdCourseId = '';
 
   it('Admin CAN create a course assigned to any faculty member', async () => {
@@ -232,7 +394,7 @@ describe('2. Admin RBAC Authorization', () => {
   });
 });
 
-describe('3. Faculty RBAC Authorization & Ownership Rules', () => {
+describe('4. Faculty RBAC Authorization & Ownership Rules', () => {
   let facultyCreatedCourseId = '';
 
   it('Faculty CAN create a course assigned to themselves', async () => {
@@ -276,7 +438,6 @@ describe('3. Faculty RBAC Authorization & Ownership Rules', () => {
   });
 
   it('Faculty MUST receive 403 Forbidden when attempting to update another faculty\'s course', async () => {
-    // Faculty 1 tries to update course2Id which belongs to Faculty 2
     const res = await request(app)
       .patch(`/api/courses/${course2Id}`)
       .set('Cookie', [faculty1Cookie])
@@ -289,7 +450,6 @@ describe('3. Faculty RBAC Authorization & Ownership Rules', () => {
   });
 
   it('Faculty MUST receive 403 Forbidden when attempting to delete another faculty\'s course', async () => {
-    // Faculty 1 tries to delete course2Id which belongs to Faculty 2
     const res = await request(app)
       .delete(`/api/courses/${course2Id}`)
       .set('Cookie', [faculty1Cookie]);
@@ -308,7 +468,7 @@ describe('3. Faculty RBAC Authorization & Ownership Rules', () => {
   });
 });
 
-describe('4. Student RBAC Authorization (Read-Only)', () => {
+describe('5. Student RBAC Authorization (Read-Only)', () => {
   it('Student CAN view available courses', async () => {
     const res = await request(app)
       .get('/api/courses')
@@ -364,7 +524,7 @@ describe('4. Student RBAC Authorization (Read-Only)', () => {
   });
 });
 
-describe('5. Data Validation & Constraints', () => {
+describe('6. Data Validation & Constraints', () => {
   it('Should reject duplicate course code with 409 Conflict', async () => {
     const res = await request(app)
       .post('/api/courses')

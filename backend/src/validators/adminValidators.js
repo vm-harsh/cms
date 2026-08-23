@@ -1,6 +1,6 @@
 const { z } = require('zod');
 
-const registerSchema = z.object({
+const createUserSchema = z.object({
   body: z.object({
     name: z
       .string({ required_error: 'Name is required' })
@@ -16,24 +16,9 @@ const registerSchema = z.object({
       .string({ required_error: 'Password is required' })
       .min(6, 'Password must be at least 6 characters long')
       .max(100, 'Password cannot exceed 100 characters'),
-    // Note: Any role sent in body is strictly ignored by backend to prevent privilege escalation
-  }).passthrough(),
-});
-
-const loginSchema = z.object({
-  body: z.object({
-    email: z
-      .string({ required_error: 'Email is required' })
-      .trim()
-      .toLowerCase()
-      .email('Invalid email address format'),
-    password: z
-      .string({ required_error: 'Password is required' })
-      .min(1, 'Password is required'),
   }),
 });
 
 module.exports = {
-  registerSchema,
-  loginSchema,
+  createUserSchema,
 };
